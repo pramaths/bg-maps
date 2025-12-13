@@ -1,6 +1,6 @@
 import { Message } from 'ai';
 import dynamic from 'next/dynamic';
-import { FaMapMarkerAlt } from 'react-icons/fa';
+import React from 'react';
 
 const Map = dynamic(() => import('../../components/map/map'), {
   ssr: false,
@@ -13,52 +13,32 @@ interface SidebarProps {
 }
 
 
-export default function Sidebar({ messages, children, ShowMessage, onSubmitFormComponent }: any) {
-
-  // const position = [51.505, -0.09]
-  // const markers = [{
-  //     label: 'First location',
-  //     position: [51.505, -0.09],
-  //     color: 'red',
-  // }, {
-  //     label: 'Second location',
-  //     position: [51.507, -0.07],
-  //     color: 'blue',
-  // }]
-
-  // const isBigMessage = (message: Message) => {
-  //   return message.function_call && JSON.stringify(message.function_call).includes('create_dynamic_map')
-  // };
-  // const bigMessages = messages.filter(isBigMessage);
-  // const chatMessages = messages.filter((msg) => !isBigMessage(msg))
-  //   .filter(message => message.role !== 'system')
-
-  // const bigMessage = bigMessages[bigMessages.length - 1];
-  //show top 5 places in san fran
-  // im traveling to san fran, what are top 5 places to go?
+export default function Sidebar({ messages, children, ShowMessage, onSubmitFormComponent, iconMapping }: any) {
   return (
     <div className="flex h-screen">
-      <div className="w-1/4 border-r">
+      <div className="w-1/4 border-r border-border bg-background text-foreground">
         <div className="p-4">
-          <h2 className="text-2xl bg-yellow-500 p-2 text-center rounded-sm font-bold">BangMaps</h2>
-          <div className="p-2 flex flex-col items-start space-y-2">
-            <label className="flex items-center space-x-2">
-              <FaMapMarkerAlt size={24} className="text-blue-500 w-4 h-4" />
-              <span className="text-gray-700">Drainage Areas</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <FaMapMarkerAlt className="text-purple-500 w-4 h-4" />
-              <span className="text-gray-700">Flooding Vulnerable</span>
-            </label>
-            <label className="flex items-center space-x-2">
-              <FaMapMarkerAlt className="text-yellow-500 w-4 h-4" />
-              <span className="text-gray-700">Drought</span>
-            </label>
+          <h2 className="text-2xl bg-card text-card-foreground p-2 text-center rounded-sm font-bold border border-border">BangMaps</h2>
+
+          <div className="mt-4">
+            <details className="rounded-md border border-border bg-card p-3">
+              <summary className="cursor-pointer select-none text-sm font-semibold">
+                Map legend
+              </summary>
+              <div className="mt-3 space-y-2">
+                {iconMapping && Object.entries(iconMapping).map(([key, url]: any) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <img src={url} alt={key} className="h-6 w-6 object-contain" />
+                    <span className="text-sm text-muted-foreground">{key}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
           <div className="mt-4 space-y-2">
             {messages.map((message, index) => {
-              return <div className="p-2 rounded-md bg-gray-100 dark:bg-yellow-200">
-                <div className="text-sm text-gray-500 dark:text-gray-400">
+              return <div className="p-2 rounded-md bg-card border border-border">
+                <div className="text-sm text-muted-foreground">
                   {/* <strong>{message.role}:</strong> */}
                   {/* {message.content} */}
                   <ShowMessage message={message} onSubmitFormComponent={onSubmitFormComponent} />
@@ -69,9 +49,9 @@ export default function Sidebar({ messages, children, ShowMessage, onSubmitFormC
           </div>
         </div>
       </div>
-      <div className="w-3/4">
+      <div className="w-3/4 bg-background">
         <div className="h-full">
-          <div className="h-full w-full rounded-md border">
+          <div className="h-full w-full rounded-md border border-border overflow-hidden">
             {/* <Map center={position} markers={markers}/> */}
             {/* {JSON.stringify(bigMessages, null, 2)} */}
             {/* <ShowMessage message={bigMessage} /> */}

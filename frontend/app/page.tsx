@@ -63,11 +63,13 @@ const PoliciesTable = ({ policies }) => {
   );
 };
 const iconMapping = {
-  'waterdepth': '/icons/yellow.png',
-  'flood': '/icons/red.png',
+  'stormwaterdrains': '/icons/drains.png',
+  'waterdepth': '/icons/waterdepth.png',
+  'flood': '/icons/flooding.png',
   'kaaqms': '/icons/airquality.svg',
   'cctv': '/icons/cctv-camera.png',
-  'firestations': '/icons/firestation.png'
+  'firestations': '/icons/firestation.png',
+  'slums': '/icons/green.png'
 
 };
 const Form = dynamic(() => import('../components/form'), { ssr: false });
@@ -88,11 +90,11 @@ function fallbackRender({ error, resetErrorBoundary }: any) {
 }
 const roleToColorMap: Record<Message['role'], string> = {
   system: 'red',
-  user: 'black',
-  function: 'blue',
-  tool: 'purple',
-  assistant: 'green',
-  data: 'orange',
+  user: 'hsl(var(--foreground))',
+  function: '#60a5fa',
+  tool: '#a78bfa',
+  assistant: '#34d399',
+  data: '#fbbf24',
 };
 
 export default function Chat() {
@@ -199,7 +201,7 @@ export default function Chat() {
         )}
         {mode === 'tools' && (
           <div className={"tools"}>
-            <Sidebar messages={chatMessages} onSubmitFormComponent={onSubmitFormComponent} ShowMessage={ShowMessage}>
+            <Sidebar messages={chatMessages} onSubmitFormComponent={onSubmitFormComponent} ShowMessage={ShowMessage} iconMapping={iconMapping}>
               {bigMessage && <ShowMessage message={bigMessage} onSubmitFormComponent={onSubmitFormComponent} modelResponse={modelResponse} />}
             </Sidebar>
           </div>
@@ -377,7 +379,7 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
       const args = parseStreamingJsonString(functionCall.arguments);
       const locationToPoint = (loc: any) => ((loc && loc?.lat && loc?.lon) ? [loc.lat, loc.lon] : null);
       const centerPosition = args?.center ? locationToPoint(args?.center) : null
-      const zoomLevel = args?.zoomLevel ?? 25;
+      const zoomLevel = args?.zoomLevel ?? 14;
       const markers = args?.markers?.map((marker, markerIndex) => ({
         label: `${markerIndex + 1}. ${marker?.label}`,
         position: locationToPoint(marker),
@@ -412,7 +414,7 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
               <Map
                 center={startPosition}
                 markers={markers}
-                zoomLevel={25}
+                zoomLevel={zoomLevel}
                 kmlFiles={loadedKmlFiles}
                 iconMapping={iconMapping}
               />

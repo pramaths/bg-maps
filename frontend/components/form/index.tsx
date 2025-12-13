@@ -5,20 +5,10 @@ import RjsfForm from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { rjsfShadcnTemplates, rjsfShadcnWidgets } from './rjsf-shadcn-theme';
 
-// const schema: RJSFSchema = {
-//   title: 'Todo',
-//   type: 'object',
-//   required: ['title'],
-//   properties: {
-//     title: { type: 'string', title: 'Title', default: 'A new task' },
-//     done: { type: 'boolean', title: 'Done?', default: false },
-//   },
-// };
 
-// const log = (type) => console.log.bind(console, type);
 
 export const Form = ({ jsonSchema, uiSchema, onSubmit }: any) => {
-    return <div>
+    return <div className="rounded-xl border border-border bg-card text-card-foreground p-5 shadow-sm">
         <RjsfForm
             className="schema-form space-y-6"
             // schema={schema}

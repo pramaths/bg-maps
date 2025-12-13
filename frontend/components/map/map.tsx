@@ -1,22 +1,10 @@
 'use client';
 
-import 'leaflet/dist/leaflet.css';
-
-import L, { Icon } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer, useMap, Circle, CircleMarker, Polyline, GeoJSON, Polygon } from 'react-leaflet';
-import React, { useState, useRef, useEffect } from 'react';
-import { Circle as LeafletCircle } from 'react-leaflet';
-import { PathOptions } from 'leaflet';
+import mapboxgl from 'mapbox-gl';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { crimeData } from '@/utils/data'
-import 'leaflet.markercluster/dist/leaflet.markercluster';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 
 const circleRadius = 1000;
-interface ExtendedCircleProps {
-  center: [number, number];
-  pathOptions?: PathOptions;
-  radius: number;
-}
 interface CrimeLocation {
   latitude: number;
   longitude: number;
@@ -27,18 +15,10 @@ interface CrimeGroup {
   Locations: CrimeLocation[];
 }
 
-interface CrimeMarkersProps {
-  crimeData: CrimeGroup[];
-}
-
-const ExtendedCircle: React.FC<ExtendedCircleProps> = (props) => {
-  return <LeafletCircle {...props} />;
+const markersByColor: Record<string, string> = {
+  red: '/pin-blue.svg',
+  blue: '/pin-red.svg',
 };
-
-const markersByColor = {
-  'red': new Icon({ iconUrl: '/pin-blue.svg', iconSize: [24, 32] }),
-  'blue': new Icon({ iconUrl: '/pin-red.svg', iconSize: [24, 32] })
-}
 
 
 export interface MapProps {
@@ -69,66 +49,59 @@ const getMarkerColor = (crimeType) => {
   return color;
 };
 
-const useCrimeClusters = (crimeData: CrimeGroup[]) => {
-  const map = useMap();
-  const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
+const toLngLat = (latLng: [number, number]) => {
+  return [latLng[1], latLng[0]] as [number, number];
+};
 
+const haversineMeters = (a: [number, number], b: [number, number]) => {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const lat1 = toRad(a[0]);
+  const lat2 = toRad(b[0]);
 
-  useEffect(() => {
-    if (!clusterRef.current && map) {
-      clusterRef.current = L.markerClusterGroup();
-      map.addLayer(clusterRef.current);
-    }
-    // remove on unmount
-    return () => {
-      if (clusterRef.current) map.removeLayer(clusterRef.current);
-    };
-  }, [map]);
+  const s1 = Math.sin(dLat / 2);
+  const s2 = Math.sin(dLng / 2);
+  const h = s1 * s1 + Math.cos(lat1) * Math.cos(lat2) * s2 * s2;
+  return 2 * R * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
 
+const createCirclePolygon = (centerLngLat: [number, number], radiusMeters: number, steps = 64) => {
+  const [lng, lat] = centerLngLat;
+  const coords: [number, number][] = [];
+  const earthRadius = 6378137;
+  const latRad = (lat * Math.PI) / 180;
+  const lngRad = (lng * Math.PI) / 180;
+  const angularDistance = radiusMeters / earthRadius;
 
-  useEffect(() => {
-    if (!clusterRef.current) return;
-    const cluster = clusterRef.current;
-    cluster.clearLayers();
-    let added = 0;
-    crimeData.forEach((crimeCategory) => {
-      const icon = L.divIcon({
-        className: 'crime-marker',
-        html: `<div style="background-color: ${getMarkerColor(crimeCategory.crimeCategory)}; 
-        width: auto; 
-        padding: 2px 4px; 
-        border-radius: 5px; 
-        display: flex; 
-        justify-content: center; 
-        align-items: center; 
-        color: black;
-        white-space: nowrap;
-        font-size: 12px;">${crimeCategory}</div>`,
-      });
+  for (let i = 0; i <= steps; i++) {
+    const bearing = (i * 2 * Math.PI) / steps;
+    const sinLat = Math.sin(latRad);
+    const cosLat = Math.cos(latRad);
+    const sinAd = Math.sin(angularDistance);
+    const cosAd = Math.cos(angularDistance);
 
-      crimeCategory.Locations.forEach(({ latitude, longitude }) => {
-        const marker = L.marker([latitude, longitude], { icon });
-        cluster.addLayer(marker);
-        added++;
-      });
-    });
-    if (cluster.getLayers().length) {
-      map.fitBounds(cluster.getBounds(), { padding: [40, 40] });
-    }
-  }, [crimeData]);
+    const lat2 = Math.asin(sinLat * cosAd + cosLat * sinAd * Math.cos(bearing));
+    const lng2 = lngRad + Math.atan2(
+      Math.sin(bearing) * sinAd * cosLat,
+      cosAd - sinLat * Math.sin(lat2)
+    );
 
-  useEffect(() => {
-    return () => {
-      if (clusterRef.current) {
-        map.removeLayer(clusterRef.current);
-      }
-    };
-  }, [map]);
-}
+    coords.push([
+      (lng2 * 180) / Math.PI,
+      (lat2 * 180) / Math.PI,
+    ]);
+  }
 
-const CrimeMarkers: React.FC<CrimeMarkersProps> = ({ crimeData }) => {
-  useCrimeClusters(crimeData);
-  return null;
+  return {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [coords],
+    },
+  };
 };
 
 // Web Worker for KML parsing
@@ -236,74 +209,18 @@ self.onmessage = async (e) => {
 };
 `;
 
-const KMLLayers = ({ kmlFiles, iconMapping }) => {
-  const map = useMap();
-  const [geoJsonData, setGeoJsonData] = useState<any[]>([]);
-  const workerRef = useRef<Worker | null>(null);
-
-  useEffect(() => {
-    // Initialize worker
-    const blob = new Blob([kmlWorkerCode], { type: 'application/javascript' });
-    workerRef.current = new Worker(URL.createObjectURL(blob));
-
-    workerRef.current.onmessage = (e) => {
-      const { features } = e.data;
-      setGeoJsonData(features);
-    };
-
-    return () => {
-      workerRef.current?.terminate();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (workerRef.current && kmlFiles.length > 0) {
-      // Convert to absolute URLs to ensure Worker can fetch them correctly
-      const absoluteKmlFiles = kmlFiles.map(file => new URL(file, window.location.origin).toString());
-      console.log('Sending KML files to worker:', absoluteKmlFiles);
-      workerRef.current.postMessage({ kmlFiles: absoluteKmlFiles });
-    }
-  }, [kmlFiles]);
-
-  return (
-    <>
-      {geoJsonData.map((feature, index) => {
-        // Handle Point
-        if (feature.geometry.type === 'Point') {
-          const iconUrl = iconMapping[feature.properties.fileName];
-
-          // If no icon mapping, skip or show default? Original code skipped.
-          if (!iconUrl) return null;
-
-          const icon = new Icon({ iconUrl, iconSize: [24, 32] });
-
-          return (
-            <Marker
-              key={index}
-              position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
-              icon={icon}
-            />
-          );
-        }
-
-        // Handle LineString
-        if (feature.geometry.type === 'LineString') {
-          const positions = feature.geometry.coordinates.map((c: any) => [c[1], c[0]]); // GeoJSON is Lon,Lat. Leaflet is Lat,Lon
-          return <Polyline key={index} positions={positions} pathOptions={{ color: 'blue', weight: 2 }} />;
-        }
-
-        // Handle Polygon
-        if (feature.geometry.type === 'Polygon') {
-          // Polygon coordinates are [ [ [lon, lat], ... ] ] (rings)
-          const positions = feature.geometry.coordinates[0].map((c: any) => [c[1], c[0]]);
-          return <Polygon key={index} positions={positions} pathOptions={{ color: 'green', fillOpacity: 0.5 }} />;
-        }
-
-        return null;
-      })}
-    </>
-  );
+interface KmlFeature {
+  type: 'Feature';
+  properties: { name?: string; fileName?: string };
+  geometry:
+  | { type: 'Point'; coordinates: [number, number] }
+  | { type: 'LineString'; coordinates: [number, number][] }
+  | { type: 'Polygon'; coordinates: [number, number][][] };
 }
+
+type KmlPointFeature = KmlFeature & { geometry: { type: 'Point'; coordinates: [number, number] } };
+type KmlLineFeature = KmlFeature & { geometry: { type: 'LineString'; coordinates: [number, number][] } };
+type KmlPolygonFeature = KmlFeature & { geometry: { type: 'Polygon'; coordinates: [number, number][][] } };
 
 interface Marker {
   position: [number, number];
@@ -311,10 +228,15 @@ interface Marker {
   color: string;
 }
 
-export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 19 }: MapProps) {
-  const mapRef = useRef()
-  const [circleData, setCircleData] = useState([]);
-  const [kmlData, setKmlData] = useState([]);
+export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 14 }: MapProps) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markerRefs = useRef<mapboxgl.Marker[]>([]);
+  const kmlPointMarkerRefs = useRef<mapboxgl.Marker[]>([]);
+  const riskMarkerRefs = useRef<mapboxgl.Marker[]>([]);
+  const [geoJsonData, setGeoJsonData] = useState<KmlFeature[]>([]);
+  const [riskAnalysisData, setRiskAnalysisData] = useState<any | null>(null);
+  const workerRef = useRef<Worker | null>(null);
   console.log(center, "location of the center of the map")
 
   const fetchKmlData = async () => {
@@ -337,8 +259,8 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
     if (response.ok) {
       const data = await response.json();
       if (data.status === 'success') {
-        setKmlData(data.pointsInCircles);
-        console.log('Points within circles:', data.pointsInCircles);
+        setRiskAnalysisData(data.data);
+        console.log('Risk analysis data:', data.data);
       } else {
         console.error('Error:', data.message);
       }
@@ -350,41 +272,415 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
     fetchKmlData();
   }, [markers]);
 
+  useEffect(() => {
+    const blob = new Blob([kmlWorkerCode], { type: 'application/javascript' });
+    workerRef.current = new Worker(URL.createObjectURL(blob));
 
-  return <div>
-    <MapContainer center={center} zoom={zoomLevel} maxZoom={19} style={{ height: '100vh' }}
-      ref={mapRef}
-      {...{} as any}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoicHJhbWF0aHMxMSIsImEiOiJjbWdwajU2NWcwb2FyMmpxNDAzN3AwdHF4In0.GL0MDtz32PYXGNfs571Luw"
-        tileSize={512}
-        zoomOffset={-1}
-        {...{} as any}
-      />
-      {markers.map((data, index) => {
-        return (
-          <div key={index}>
-            <Marker
-              position={data.position}
-              icon={markersByColor[data?.color] ?? markersByColor['red']}
-              {...{} as any}
-            >
-              <Popup>{data.label}</Popup>
-            </Marker>
-            <ExtendedCircle
-              center={data.position}
-              pathOptions={{ color: 'red' }}
-              radius={circleRadius as any}
-            />
-          </div>
-        );
-      })}
+    workerRef.current.onmessage = (e) => {
+      const { features } = e.data;
+      setGeoJsonData(features);
+    };
 
-      <KMLLayers kmlFiles={kmlFiles} iconMapping={iconMapping} />
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
 
-      <CrimeMarkers crimeData={crimeData} />
-    </MapContainer>
-  </div>;
+  useEffect(() => {
+    if (workerRef.current && kmlFiles.length > 0) {
+      const absoluteKmlFiles = kmlFiles.map(file => new URL(file, window.location.origin).toString());
+      console.log('Sending KML files to worker:', absoluteKmlFiles);
+      workerRef.current.postMessage({ kmlFiles: absoluteKmlFiles });
+    }
+  }, [kmlFiles]);
+
+  const crimeFeatureCollection = useMemo(() => {
+    const features: any[] = [];
+    crimeData.forEach((group) => {
+      const color = getMarkerColor(group.crimeCategory);
+      group.Locations.forEach((loc) => {
+        features.push({
+          type: 'Feature',
+          properties: {
+            crimeCategory: group.crimeCategory,
+            color,
+          },
+          geometry: {
+            type: 'Point',
+            coordinates: [loc.longitude, loc.latitude],
+          },
+        });
+      });
+    });
+    return {
+      type: 'FeatureCollection',
+      features,
+    } as const;
+  }, []);
+
+  useEffect(() => {
+    const token = (process.env.NEXT_PUBLIC_MAPBOX_TOKEN as string | undefined)
+      ?? 'pk.eyJ1IjoicHJhbWF0aHMxMSIsImEiOiJjbWdwajU2NWcwb2FyMmpxNDAzN3AwdHF4In0.GL0MDtz32PYXGNfs571Luw';
+    mapboxgl.accessToken = token;
+
+    if (mapRef.current || !mapContainerRef.current) return;
+
+    mapRef.current = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: toLngLat(center),
+      zoom: zoomLevel,
+      pitch: 0,
+      bearing: 0,
+      attributionControl: true,
+    });
+
+    mapRef.current.on('style.load', () => {
+      mapRef.current?.setFog({
+        color: 'rgb(18, 20, 26)',
+        'high-color': 'rgb(32, 36, 46)',
+        'horizon-blend': 0.06,
+        'space-color': 'rgb(18, 20, 26)',
+        'star-intensity': 0.2,
+      } as any);
+    });
+
+    mapRef.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+
+    return () => {
+      markerRefs.current.forEach((m) => m.remove());
+      markerRefs.current = [];
+      kmlPointMarkerRefs.current.forEach((m) => m.remove());
+      kmlPointMarkerRefs.current = [];
+      riskMarkerRefs.current.forEach((m) => m.remove());
+      riskMarkerRefs.current = [];
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    riskMarkerRefs.current.forEach((m) => m.remove());
+    riskMarkerRefs.current = [];
+
+    if (!riskAnalysisData) return;
+
+    const floodIcon = iconMapping?.flood;
+    const waterDepthIcon = iconMapping?.waterdepth;
+
+    (riskAnalysisData?.flood ?? []).forEach((p: any) => {
+      if (!floodIcon || typeof p?.longitude !== 'number' || typeof p?.latitude !== 'number') return;
+
+      const el = document.createElement('img');
+      el.src = floodIcon;
+      el.style.width = '24px';
+      el.style.height = '24px';
+      el.style.objectFit = 'contain';
+
+      const popupText = p?.LocationName ? `Flood: ${p.LocationName}` : 'Flood';
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([p.longitude, p.latitude])
+        .setPopup(new mapboxgl.Popup({ offset: 16 }).setText(popupText))
+        .addTo(map);
+
+      riskMarkerRefs.current.push(marker);
+    });
+
+    (riskAnalysisData?.waterdepth ?? []).forEach((p: any) => {
+      if (!waterDepthIcon || typeof p?.longitude !== 'number' || typeof p?.latitude !== 'number') return;
+
+      const el = document.createElement('img');
+      el.src = waterDepthIcon;
+      el.style.width = '24px';
+      el.style.height = '24px';
+      el.style.objectFit = 'contain';
+
+      const depth = typeof p?.depth_in_m === 'number' ? `${p.depth_in_m.toFixed(1)}m` : '';
+      const popupText = depth ? `Water depth: ${depth}` : 'Water depth';
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([p.longitude, p.latitude])
+        .setPopup(new mapboxgl.Popup({ offset: 16 }).setText(popupText))
+        .addTo(map);
+
+      riskMarkerRefs.current.push(marker);
+    });
+  }, [riskAnalysisData, iconMapping]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.flyTo({
+      center: toLngLat(center),
+      zoom: zoomLevel,
+      duration: 1200,
+      essential: true,
+    });
+  }, [center, zoomLevel]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    markerRefs.current.forEach((m) => m.remove());
+    markerRefs.current = [];
+
+    markers.forEach((data) => {
+      const iconUrl = markersByColor[data?.color] ?? markersByColor.red;
+      const el = document.createElement('div');
+      el.style.width = '24px';
+      el.style.height = '32px';
+      el.style.backgroundImage = `url(${iconUrl})`;
+      el.style.backgroundSize = 'contain';
+      el.style.backgroundRepeat = 'no-repeat';
+      el.style.cursor = 'pointer';
+
+      const popup = new mapboxgl.Popup({ offset: 16 }).setText(data.label);
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat(toLngLat(data.position))
+        .setPopup(popup)
+        .addTo(map);
+
+      markerRefs.current.push(marker);
+    });
+  }, [markers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const circles = {
+      type: 'FeatureCollection',
+      features: markers.map((m) => createCirclePolygon(toLngLat(m.position), circleRadius)),
+    } as const;
+
+    const sourceId = 'marker-circles';
+    const fillLayerId = 'marker-circles-fill';
+    const lineLayerId = 'marker-circles-line';
+
+    const apply = () => {
+      if (map.getSource(sourceId)) {
+        (map.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(circles as any);
+      } else {
+        map.addSource(sourceId, { type: 'geojson', data: circles as any });
+        map.addLayer({
+          id: fillLayerId,
+          type: 'fill',
+          source: sourceId,
+          paint: {
+            'fill-color': '#ef4444',
+            'fill-opacity': 0.12,
+          },
+        });
+        map.addLayer({
+          id: lineLayerId,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': '#ef4444',
+            'line-width': 2,
+            'line-opacity': 0.6,
+          },
+        });
+      }
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [markers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const lineFeatures = geoJsonData.filter((f): f is KmlLineFeature => f.geometry.type === 'LineString');
+    const polygonFeatures = geoJsonData.filter((f): f is KmlPolygonFeature => f.geometry.type === 'Polygon');
+    const pointFeatures = geoJsonData.filter((f): f is KmlPointFeature => f.geometry.type === 'Point');
+
+    const linesFc = { type: 'FeatureCollection', features: lineFeatures } as const;
+    const polygonsFc = { type: 'FeatureCollection', features: polygonFeatures } as const;
+
+    const apply = () => {
+      const linesSourceId = 'kml-lines';
+      const polygonsSourceId = 'kml-polygons';
+
+      if (map.getSource(linesSourceId)) {
+        (map.getSource(linesSourceId) as mapboxgl.GeoJSONSource).setData(linesFc as any);
+      } else {
+        map.addSource(linesSourceId, { type: 'geojson', data: linesFc as any });
+        map.addLayer({
+          id: 'kml-lines-layer',
+          type: 'line',
+          source: linesSourceId,
+          paint: {
+            'line-color': '#3b82f6',
+            'line-width': 2,
+          },
+        });
+      }
+
+      if (map.getSource(polygonsSourceId)) {
+        (map.getSource(polygonsSourceId) as mapboxgl.GeoJSONSource).setData(polygonsFc as any);
+      } else {
+        map.addSource(polygonsSourceId, { type: 'geojson', data: polygonsFc as any });
+        map.addLayer({
+          id: 'kml-polygons-fill',
+          type: 'fill',
+          source: polygonsSourceId,
+          paint: {
+            'fill-color': '#22c55e',
+            'fill-opacity': 0.35,
+          },
+        });
+        map.addLayer({
+          id: 'kml-polygons-outline',
+          type: 'line',
+          source: polygonsSourceId,
+          paint: {
+            'line-color': '#16a34a',
+            'line-width': 2,
+          },
+        });
+      }
+
+      kmlPointMarkerRefs.current.forEach((m) => m.remove());
+      kmlPointMarkerRefs.current = [];
+      const markerCenters: [number, number][] = (markers ?? []).map((m) => m.position);
+      const isInAnyCircle = (lat: number, lon: number) => {
+        if (markerCenters.length === 0) return true;
+        for (const c of markerCenters) {
+          if (haversineMeters(c, [lat, lon]) <= circleRadius) return true;
+        }
+        return false;
+      };
+
+      pointFeatures.forEach((feature) => {
+        const iconUrl = feature.properties?.fileName ? iconMapping[feature.properties.fileName] : undefined;
+        if (!iconUrl) return;
+
+        const [lon, lat] = feature.geometry.coordinates;
+        if (!isInAnyCircle(lat, lon)) return;
+
+        const el = document.createElement('img');
+        el.src = iconUrl;
+        el.style.width = '18px';
+        el.style.height = '18px';
+        el.style.objectFit = 'contain';
+
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat(feature.geometry.coordinates)
+          .addTo(map);
+        kmlPointMarkerRefs.current.push(marker);
+      });
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [geoJsonData, iconMapping, markers]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const sourceId = 'crime';
+
+    const apply = () => {
+      if (map.getSource(sourceId)) {
+        (map.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(crimeFeatureCollection as any);
+      } else {
+        map.addSource(sourceId, {
+          type: 'geojson',
+          data: crimeFeatureCollection as any,
+          cluster: true,
+          clusterRadius: 50,
+          clusterMaxZoom: 14,
+        });
+
+        map.addLayer({
+          id: 'crime-clusters',
+          type: 'circle',
+          source: sourceId,
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': '#60a5fa',
+            'circle-radius': [
+              'step',
+              ['get', 'point_count'],
+              14,
+              50,
+              18,
+              200,
+              22,
+            ],
+            'circle-opacity': 0.75,
+          },
+        });
+
+        map.addLayer({
+          id: 'crime-cluster-count',
+          type: 'symbol',
+          source: sourceId,
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': '{point_count_abbreviated}',
+            'text-size': 12,
+          },
+          paint: {
+            'text-color': '#0b1220',
+          },
+        });
+
+        map.addLayer({
+          id: 'crime-unclustered',
+          type: 'circle',
+          source: sourceId,
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': ['get', 'color'],
+            'circle-radius': 10,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#0b1220',
+          },
+        });
+
+        map.on('click', 'crime-clusters', (e) => {
+          const features = map.queryRenderedFeatures(e.point, { layers: ['crime-clusters'] });
+          const clusterId = features?.[0]?.properties?.cluster_id;
+          if (clusterId === undefined) return;
+
+          (map.getSource(sourceId) as mapboxgl.GeoJSONSource).getClusterExpansionZoom(clusterId, (err, zoom) => {
+            if (err) return;
+            const geometry = features[0].geometry as any;
+            const coordinates = geometry?.coordinates;
+            if (!coordinates) return;
+            map.easeTo({ center: coordinates, zoom });
+          });
+        });
+
+        map.on('mouseenter', 'crime-clusters', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', 'crime-clusters', () => {
+          map.getCanvas().style.cursor = '';
+        });
+      }
+
+    };
+
+    if (map.isStyleLoaded()) apply();
+    else map.once('load', apply);
+  }, [crimeFeatureCollection]);
+
+
+  return (
+    <div>
+      <div ref={mapContainerRef} style={{ height: '100vh' }} />
+    </div>
+  );
 }
