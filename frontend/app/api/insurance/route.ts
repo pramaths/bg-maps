@@ -12,7 +12,7 @@ type PolicyDetails = {
 type SamplePolicies = Record<string, PolicyDetails>;
 
 const openaiApiKey = process.env.OPENAI_API_KEY;
-const modelName = "gpt-4.1";
+const modelName = "gpt-5-mini-2025-08-07";
 
 const samplePolicies: SamplePolicies = {
     "Policy A": {
@@ -23,7 +23,7 @@ const samplePolicies: SamplePolicies = {
         "Theft": "Included",
         "Deductible": "15,000 INR"
     },
-"Policy B": {
+    "Policy B": {
         "Annual Premium": "12,000 INR",
         "Building Coverage": "50 Lakhs",
         "Content Coverage": "10 Lakhs",

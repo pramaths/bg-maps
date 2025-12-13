@@ -3,8 +3,7 @@
 import 'leaflet/dist/leaflet.css';
 
 import L, { Icon } from 'leaflet';
-import { MapContainer, Marker, Popup, TileLayer, useMap, Circle, CircleMarker, Polyline } from 'react-leaflet';
-import omnivore from "@mapbox/leaflet-omnivore";
+import { MapContainer, Marker, Popup, TileLayer, useMap, Circle, CircleMarker, Polyline, GeoJSON, Polygon } from 'react-leaflet';
 import React, { useState, useRef, useEffect } from 'react';
 import { Circle as LeafletCircle } from 'react-leaflet';
 import { PathOptions } from 'leaflet';
@@ -91,8 +90,8 @@ const useCrimeClusters = (crimeData: CrimeGroup[]) => {
     if (!clusterRef.current) return;
     const cluster = clusterRef.current;
     cluster.clearLayers();
-    let added = 0;    
-    crimeData.forEach(( crimeCategory) => {
+    let added = 0;
+    crimeData.forEach((crimeCategory) => {
       const icon = L.divIcon({
         className: 'crime-marker',
         html: `<div style="background-color: ${getMarkerColor(crimeCategory.crimeCategory)}; 
@@ -132,48 +131,185 @@ const CrimeMarkers: React.FC<CrimeMarkersProps> = ({ crimeData }) => {
   return null;
 };
 
-const KMLLayer = ({ kmlFile, iconUrl, circleCenter, circleRadius }) => {
+// Web Worker for KML parsing
+const kmlWorkerCode = `
+self.onmessage = async (e) => {
+  const { kmlFiles } = e.data;
+  console.log('Worker received files:', kmlFiles);
+  const features = [];
+
+  for (const fileUrl of kmlFiles) {
+    try {
+      console.log('Worker fetching:', fileUrl);
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error(\`Failed to fetch \${fileUrl}: \${response.statusText}\`);
+      const text = await response.text();
+      const fileName = fileUrl.split('/').pop().split('.')[0];
+      
+      console.log('Worker parsing:', fileName, 'Length:', text.length);
+
+      // Simple regex parser for Placemarks
+      const placemarkRegex = /<Placemark>([\\s\\S]*?)<\\/Placemark>/g;
+      let match;
+      let count = 0;
+      
+      while ((match = placemarkRegex.exec(text)) !== null) {
+        const content = match[1];
+        const nameRegex = /<name>([\\s\\S]*?)<\\/name>/;
+        const nameMatch = content.match(nameRegex);
+        const name = nameMatch ? nameMatch[1].trim() : '';
+
+        // Helper to extract coordinates
+        const parseCoords = (coordStr) => {
+            return coordStr.trim().split(/\\s+/).map(c => {
+                const parts = c.split(',');
+                if (parts.length >= 2) return [parseFloat(parts[0]), parseFloat(parts[1])]; // Lon, Lat
+                return null;
+            }).filter(c => c);
+        };
+
+        // 1. Find Points
+        const pointRegex = /<Point>([\\s\\S]*?)<\\/Point>/g;
+        let pMatch;
+        while ((pMatch = pointRegex.exec(content)) !== null) {
+             const coordRegex = /<coordinates>([\\s\\S]*?)<\\/coordinates>/;
+             const cMatch = pMatch[1].match(coordRegex);
+             if (cMatch) {
+                 const coords = parseCoords(cMatch[1]);
+                 if (coords.length > 0) {
+                     features.push({
+                         type: 'Feature',
+                         properties: { name, fileName },
+                         geometry: { type: 'Point', coordinates: coords[0] }
+                     });
+                     count++;
+                 }
+             }
+        }
+
+        // 2. Find LineStrings
+        const lineRegex = /<LineString>([\\s\\S]*?)<\\/LineString>/g;
+        let lMatch;
+        while ((lMatch = lineRegex.exec(content)) !== null) {
+             const coordRegex = /<coordinates>([\\s\\S]*?)<\\/coordinates>/;
+             const cMatch = lMatch[1].match(coordRegex);
+             if (cMatch) {
+                 const coords = parseCoords(cMatch[1]);
+                 if (coords.length > 0) {
+                     features.push({
+                         type: 'Feature',
+                         properties: { name, fileName },
+                         geometry: { type: 'LineString', coordinates: coords }
+                     });
+                     count++;
+                 }
+             }
+        }
+
+        // 3. Find Polygons
+        const polyRegex = /<Polygon>([\\s\\S]*?)<\\/Polygon>/g;
+        let pgMatch;
+        while ((pgMatch = polyRegex.exec(content)) !== null) {
+             // Usually OuterBoundaryIs -> LinearRing -> coordinates
+             const coordRegex = /<coordinates>([\\s\\S]*?)<\\/coordinates>/;
+             const cMatch = pgMatch[1].match(coordRegex); // Grab first coordinates which is usually outer
+             if (cMatch) {
+                 const coords = parseCoords(cMatch[1]);
+                 if (coords.length > 0) {
+                     features.push({
+                         type: 'Feature',
+                         properties: { name, fileName },
+                         geometry: { type: 'Polygon', coordinates: [coords] }
+                     });
+                     count++;
+                 }
+             }
+        }
+      }
+      console.log('Worker parsed features for', fileName, ':', count);
+    } catch (err) {
+      console.error('Error parsing KML in worker:', err);
+    }
+  }
+  
+  self.postMessage({ features });
+};
+`;
+
+const KMLLayers = ({ kmlFiles, iconMapping }) => {
   const map = useMap();
+  const [geoJsonData, setGeoJsonData] = useState<any[]>([]);
+  const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
-    const kmlLayer = omnivore.kml(kmlFile)
-      .on('ready', () => {
-        kmlLayer.eachLayer((layer: any) => {
-          const featureType = layer.feature.geometry.type;
-          if (featureType === 'Point' && iconUrl) {
-            const icon = getIcon(iconUrl);
-            layer.setIcon(icon);
-          }
-        });
+    // Initialize worker
+    const blob = new Blob([kmlWorkerCode], { type: 'application/javascript' });
+    workerRef.current = new Worker(URL.createObjectURL(blob));
 
-        // Fit bounds to all points
-        if (kmlLayer.getLayers().length > 0) {
-          map.fitBounds(kmlLayer.getBounds());
-        }
-      })
-      .addTo(map);
+    workerRef.current.onmessage = (e) => {
+      const { features } = e.data;
+      setGeoJsonData(features);
+    };
 
     return () => {
-      map.removeLayer(kmlLayer);
+      workerRef.current?.terminate();
     };
-  }, [kmlFile, map, iconUrl]);
+  }, []);
 
-  return null;
-};
+  useEffect(() => {
+    if (workerRef.current && kmlFiles.length > 0) {
+      // Convert to absolute URLs to ensure Worker can fetch them correctly
+      const absoluteKmlFiles = kmlFiles.map(file => new URL(file, window.location.origin).toString());
+      console.log('Sending KML files to worker:', absoluteKmlFiles);
+      workerRef.current.postMessage({ kmlFiles: absoluteKmlFiles });
+    }
+  }, [kmlFiles]);
+
+  return (
+    <>
+      {geoJsonData.map((feature, index) => {
+        // Handle Point
+        if (feature.geometry.type === 'Point') {
+          const iconUrl = iconMapping[feature.properties.fileName];
+
+          // If no icon mapping, skip or show default? Original code skipped.
+          if (!iconUrl) return null;
+
+          const icon = new Icon({ iconUrl, iconSize: [24, 32] });
+
+          return (
+            <Marker
+              key={index}
+              position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
+              icon={icon}
+            />
+          );
+        }
+
+        // Handle LineString
+        if (feature.geometry.type === 'LineString') {
+          const positions = feature.geometry.coordinates.map((c: any) => [c[1], c[0]]); // GeoJSON is Lon,Lat. Leaflet is Lat,Lon
+          return <Polyline key={index} positions={positions} pathOptions={{ color: 'blue', weight: 2 }} />;
+        }
+
+        // Handle Polygon
+        if (feature.geometry.type === 'Polygon') {
+          // Polygon coordinates are [ [ [lon, lat], ... ] ] (rings)
+          const positions = feature.geometry.coordinates[0].map((c: any) => [c[1], c[0]]);
+          return <Polygon key={index} positions={positions} pathOptions={{ color: 'green', fillOpacity: 0.5 }} />;
+        }
+
+        return null;
+      })}
+    </>
+  );
+}
 
 interface Marker {
   position: [number, number];
   label: string;
   color: string;
 }
-
-const iconCache = {};
-const getIcon = (url) => {
-  if (!iconCache[url]) {
-    iconCache[url] = new Icon({ iconUrl: url, iconSize: [24, 32] });
-  }
-  return iconCache[url];
-};
 
 export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 19 }: MapProps) {
   const mapRef = useRef()
@@ -213,14 +349,18 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
   useEffect(() => {
     fetchKmlData();
   }, [markers]);
+
+
   return <div>
     <MapContainer center={center} zoom={zoomLevel} maxZoom={19} style={{ height: '100vh' }}
       ref={mapRef}
       {...{} as any}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoicHJhbWF0aHMxMSIsImEiOiJjbWdwajU2NWcwb2FyMmpxNDAzN3AwdHF4In0.GL0MDtz32PYXGNfs571Luw"
+        tileSize={512}
+        zoomOffset={-1}
         {...{} as any}
       />
       {markers.map((data, index) => {
@@ -241,13 +381,9 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
           </div>
         );
       })}
-      {kmlFiles.map((kmlFile, index) => {
-        const fileName = kmlFile.split('/').pop()?.split('.')[0] ?? '';
-        const iconUrl = iconMapping[fileName] ?? '';
 
-        return <KMLLayer key={index} kmlFile={kmlFile} iconUrl={iconUrl} circleCenter={center}
-          circleRadius={circleRadius} />
-      })}
+      <KMLLayers kmlFiles={kmlFiles} iconMapping={iconMapping} />
+
       <CrimeMarkers crimeData={crimeData} />
     </MapContainer>
   </div>;

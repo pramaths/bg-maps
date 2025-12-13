@@ -6,7 +6,7 @@ import {
 } from 'ai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY ,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // IMPORTANT! Set the runtime to edge
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   // Ask OpenAI for a streaming completion given the prompt
   const response = await openai.completions.create({
-    model: 'gpt-4.1',
+    model: 'gpt-5-mini-2025-08-07',
     max_tokens: 2000,
     stream: true,
     prompt,

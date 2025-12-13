@@ -173,46 +173,11 @@ Instructions:
       functions,
     });
 
-    // const data = new experimental_StreamData();
     const stream = OpenAIStream(response, {
-      // experimental_onFunctionCall: async (
-      //   { name, arguments: args },
-      //   createFunctionCallMessages,
-      // ) => {
-      //   return;
-      //   if (name === 'get_current_weather') {
-      //     // Call a weather API here
-      //     const weatherData = {
-      //       temperature: 20,
-      //       unit: args.format === 'celsius' ? 'C' : 'F',
-      //     };
-
-      //     data.append({
-      //       text: 'Some custom data',
-      //     });
-
-      //     const newMessages = createFunctionCallMessages(weatherData);
-      //     return openai.chat.completions.create({
-      //       messages: [...messages, ...newMessages],
-      //       stream: true,
-      //       model: 'o3-mini-2025-01-31-0125',
-      //     });
-      //   }
-      // },
       onCompletion(completion) {
         console.log("completionnnnnß", completion);
       },
-      // onFinal(completion) {
-      //   // data.close();
-      // },
-      // experimental_streamData: true,
     });
-
-    // data.append({
-    //   text: 'Hello, how are you?',
-    // });
-
-    // return new StreamingTextResponse(stream, {}, data);
     return new StreamingTextResponse(stream);
   } catch (error: any) {
     console.error(error);
