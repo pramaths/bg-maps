@@ -1,6 +1,5 @@
 'use client';
 
-import { RJSFSchema } from '@rjsf/utils';
 import RjsfForm from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
 import { rjsfShadcnTemplates, rjsfShadcnWidgets } from './rjsf-shadcn-theme';
@@ -8,30 +7,18 @@ import { rjsfShadcnTemplates, rjsfShadcnWidgets } from './rjsf-shadcn-theme';
 
 
 export const Form = ({ jsonSchema, uiSchema, onSubmit }: any) => {
-    return <div className="rounded-xl border border-border bg-card text-card-foreground p-5 shadow-sm">
-        <RjsfForm
-            className="schema-form space-y-6"
-            // schema={schema}
-            schema={jsonSchema}
-            uiSchema={uiSchema}
-            validator={validator}
-            templates={rjsfShadcnTemplates as any}
-            widgets={rjsfShadcnWidgets as any}
-            // onChange={log('changed')}
-            // onSubmit={log('submitted')}
-            onSubmit={onSubmit}
-            // onError={log('errors')}
-        />
-        {/*
-        <div>JSON schema:</div>
-        <pre>
-            {JSON.stringify(jsonSchema, null, 2)}
-        </pre>
-        <div>UI schema:</div>
-        <pre>
-            {JSON.stringify(uiSchema, null, 2)}
-        </pre>
-        */}
+    return <div className=" w-full rounded-lg border-none bg-zinc-50/50 p-1">
+        <div className="bg-white p-2 rounded-md border border-zinc-100 shadow-sm">
+            <RjsfForm
+                className="schema-form space-y-6"
+                schema={jsonSchema}
+                uiSchema={uiSchema}
+                validator={validator}
+                templates={rjsfShadcnTemplates as any}
+                widgets={rjsfShadcnWidgets as any}
+                onSubmit={onSubmit}
+            />
+        </div>
     </div>;
 }
 

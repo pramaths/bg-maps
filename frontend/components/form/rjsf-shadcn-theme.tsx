@@ -114,6 +114,7 @@ export function ShadcnTextWidget(props: WidgetProps) {
       onChange={(e) => onChange(coerceEmptyToUndefined(e.target.value))}
       onBlur={(e) => onBlur && onBlur(id, e.target.value)}
       onFocus={(e) => onFocus && onFocus(id, e.target.value)}
+      className="text-zinc-900 bg-white border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
     />
   )
 }
@@ -142,6 +143,7 @@ export function ShadcnNumberWidget(props: WidgetProps) {
       onChange={(e) => onChange(coerceEmptyToUndefined(e.target.value))}
       onBlur={(e) => onBlur && onBlur(id, e.target.value)}
       onFocus={(e) => onFocus && onFocus(id, e.target.value)}
+      className="text-zinc-900 bg-white border-zinc-300 focus:border-blue-500 focus:ring-blue-500"
     />
   )
 }
@@ -169,6 +171,7 @@ export function ShadcnTextareaWidget(props: WidgetProps) {
       onChange={(e) => onChange(coerceEmptyToUndefined(e.target.value))}
       onBlur={(e) => onBlur && onBlur(id, e.target.value)}
       onFocus={(e) => onFocus && onFocus(id, e.target.value)}
+      className="text-zinc-900 bg-white border-zinc-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
     />
   )
 }
@@ -201,6 +204,7 @@ export function ShadcnSelectWidget(props: WidgetProps) {
       disabled={disabled || readonly}
       autoFocus={autofocus}
       onChange={(e) => onChange(coerceEmptyToUndefined(e.target.value))}
+      className="text-zinc-900 bg-white border-zinc-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
     >
       <option value="" disabled>
         {placeholder || "Select"}

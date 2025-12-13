@@ -13,7 +13,6 @@ import { parseStreamingFunctionCall, parseStreamingJsonString } from '../lib/par
 import Risko from '../components/riskrepo/risk';
 import Chart from '../components/charts/chart'
 import CrimeChart from '../components/crimechart/crimechart'
-import { ElevenLabsClient, play } from "elevenlabs";
 const kmlFileUrls = [
   '/kml/stormwaterdrains.kml',
   '/kml/waterdepth.kml',
@@ -23,12 +22,6 @@ const kmlFileUrls = [
   "/kml/firestations.kml",
   "/kml/slums.kml",
 ];
-
-
-const elevenlabs = new ElevenLabsClient({
-  apiKey: 'sk_2f5f613f0236eadc1f9730d16f2d6c2bfcdea56ede7a550b',
-});
-
 
 const PoliciesTable = ({ policies }) => {
   return (
@@ -202,7 +195,7 @@ export default function Chat() {
         {mode === 'tools' && (
           <div className={"tools"}>
             <Sidebar messages={chatMessages} onSubmitFormComponent={onSubmitFormComponent} ShowMessage={ShowMessage} iconMapping={iconMapping}>
-              {bigMessage && <ShowMessage message={bigMessage} onSubmitFormComponent={onSubmitFormComponent} modelResponse={modelResponse} />}
+              {bigMessage && <ShowMessage message={bigMessage} onSubmitFormComponent={onSubmitFormComponent} modelResponse={modelResponse} isMain={true} />}
             </Sidebar>
           </div>
         )}
@@ -211,34 +204,45 @@ export default function Chat() {
   )
 }
 
-function ShowMessage({ message: m, onSubmitFormComponent, modelResponse }: { message: Message, onSubmitFormComponent: any, modelResponse: any }) {
+function ShowMessage({ message: m, onSubmitFormComponent, modelResponse, isMain }: { message: Message, onSubmitFormComponent: any, modelResponse: any, isMain?: boolean }) {
   const isFunctionCallDone = typeof m.function_call === 'object';
-  return (
-    <div
-      key={m.id}
-      className="whitespace-pre-wrap"
-      style={{ color: roleToColorMap[m.role] }}
-    >
-      <strong>{`${m.role.toUpperCase()}: `}</strong>
+  const isUser = m.role === 'user';
 
-      {m.content ? (
-        m.content
-      ) :
-        (<>
-          <ErrorBoundary
-            fallbackRender={fallbackRender}
-            // resetKeys={[JSON.stringify(json)]}>
-            resetKeys={[JSON.stringify(m.function_call)]}>
-            <div>{isFunctionCallDone ? "" : "Writing..."}</div>
-            <DynamicComponent functionCall={m.function_call} onSubmit={onSubmitFormComponent} modelResponse={modelResponse} />
-          </ErrorBoundary>
-        </>
+  if (m.role === 'function') return null;
+
+  return (
+    <div key={m.id} className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`w-full rounded-2xl px-2 py-2 text-sm shadow-sm ${isUser
+          ? 'bg-blue-600 text-white'
+          : isMain
+            ? 'bg-transparent text-zinc-800 px-0 py-0'
+            : 'bg-zinc-100 text-zinc-800 py-2 border border-zinc-200'
+          }`}
+      >
+        {!isMain && <div className="font-semibold text-xs opacity-70 mb-1.5 uppercase tracking-wider">
+          {m.role === 'assistant' ? 'Assistant' : m.role}
+        </div>}
+
+        {m.content ? (
+          <div className={`whitespace-pre-wrap ${isUser ? 'text-white' : 'text-zinc-800'}`}>
+            {m.content}
+          </div>
+        ) : (
+          <>
+            <ErrorBoundary
+              fallbackRender={fallbackRender}
+              resetKeys={[JSON.stringify(m.function_call)]}>
+              <div>{isFunctionCallDone ? "" : <span className="animate-pulse">Thinking...</span>}</div>
+              <DynamicComponent functionCall={m.function_call} onSubmit={onSubmitFormComponent} modelResponse={modelResponse} />
+            </ErrorBoundary>
+          </>
         )}
-      <br />
-      <br />
+      </div>
     </div>
   );
 }
+
 
 
 function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelResponse }: any) {
@@ -250,7 +254,6 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
   const [showAdditionalComponents, setShowAdditionalComponents] = useState(false);
   const [loadedKmlFiles, setLoadedKmlFiles] = useState<string[]>([]);
 
-  // First useEffect - for analysis data
   useEffect(() => {
     const fetchAnalysis = async () => {
       const { startPosition } = prevState.current;
@@ -301,28 +304,6 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
     fetchAnalysis();
   }, [isLoading]);
 
-  useEffect(() => {
-    const playAudio = async () => {
-      const { startPosition } = prevState.current;
-      if (startPosition && modelResponse?.verdict && !audioPlayedRef.current) {
-        audioPlayedRef.current = true;
-        try {
-          const audio = await elevenlabs.generate({
-            voice: "Sarah",
-            text: modelResponse.verdict,
-            model_id: "eleven_multilingual_v2",
-          });
-          await play(audio);
-        } catch (error) {
-          console.error('Error generating or playing audio:', error);
-        }
-      }
-    };
-
-    setTimeout(playAudio, 3000);
-  }, [modelResponse]);
-
-  // Third useEffect - for KML files
   useEffect(() => {
     const essentialKmlFiles = ['/kml/flood.kml', '/kml/waterdepth.kml'];
     setLoadedKmlFiles(essentialKmlFiles);
