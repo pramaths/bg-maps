@@ -310,16 +310,20 @@ export default function Home({ runQuery }: HomeProps) {
           </div>
         </div>
 
-        <div className="w-full max-w-2xl p-6 mb-4 mx-auto">
-          <div className="backdrop-blur-2xl bg-black/30 p-6 rounded-2xl border border-white/20">
+        <div className="w-full max-w-2xl p-6 mb-4 mx-auto animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+          <div className="backdrop-blur-2xl bg-white/5 p-6 rounded-3xl border border-white/10">
+            <h3 className="text-white font-semibold mb-4 text-center">Try these examples:</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {predefinedQueries.map((predefinedQuery, index) => (
                 <div key={index} className="col-span-1">
                   <button
-                    className="w-full text-left text-gray-200 hover:bg-white/10 transition-colors duration-200 p-4 rounded-xl border border-white/10 hover:border-white/20"
+                    className="w-full text-left text-gray-200 hover:bg-white/10 transition-all duration-300 p-5 rounded-2xl border border-white/10 hover:border-purple-400/50 hover:shadow-lg hover:shadow-purple-500/20 group hover:scale-[1.02] transform"
                     onClick={() => selectPredefinedQuery(predefinedQuery)}
                   >
-                    {predefinedQuery}
+                    <div className="flex items-start space-x-2">
+                      <span className="text-purple-400 mt-1 group-hover:scale-110 transition-transform duration-300">✨</span>
+                      <span className="text-sm leading-relaxed">{predefinedQuery}</span>
+                    </div>
                   </button>
                 </div>
               ))}
@@ -333,6 +337,90 @@ export default function Home({ runQuery }: HomeProps) {
         />
       </div>
 
+      <style jsx global>{`
+        @keyframes gradient-shift {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translate(0, 0);
+          }
+          50% {
+            transform: translate(30px, -30px);
+          }
+        }
+
+        @keyframes float-delayed {
+          0%, 100% {
+            transform: translate(0, 0);
+          }
+          50% {
+            transform: translate(-30px, 30px);
+          }
+        }
+
+        @keyframes float-slow {
+          0%, 100% {
+            transform: translate(0, 0) scale(1);
+          }
+          50% {
+            transform: translate(20px, -20px) scale(1.1);
+          }
+        }
+
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes gradient-text {
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+
+        .animate-gradient-shift {
+          background-size: 200% 200%;
+          animation: gradient-shift 15s ease infinite;
+        }
+
+        .animate-float {
+          animation: float 8s ease-in-out infinite;
+        }
+
+        .animate-float-delayed {
+          animation: float-delayed 10s ease-in-out infinite;
+        }
+
+        .animate-float-slow {
+          animation: float-slow 12s ease-in-out infinite;
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.8s ease-out forwards;
+          opacity: 0;
+        }
+
+        .animate-gradient-text {
+          background-size: 200% 200%;
+          animation: gradient-text 3s ease infinite;
+        }
+      `}</style>
     </section>
   );
 }
