@@ -349,7 +349,11 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
     // Animate markers appearing one by one
     markers.forEach((_, index) => {
       setTimeout(() => {
-        setMarkersVisible(prev => new Set([...prev, index]));
+        setMarkersVisible(prev => {
+          const newSet = new Set(prev);
+          newSet.add(index);
+          return newSet;
+        });
       }, 1500 + (index * 400));
     });
   }, [markers])
