@@ -7,7 +7,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import dynamic from 'next/dynamic';
 import RiskAnalysisTable from '@/components/home/risktable';
 import Home, { HomeProps } from '@/components/home';
-import Sidebar from '@/components/sidebar';
+import Sidebar from "@/components/sidebar"
 import Head from 'next/head';
 import { parseStreamingFunctionCall, parseStreamingJsonString } from '../lib/parseStreamingJson';
 import Risko from '../components/riskrepo/risk';
@@ -26,7 +26,7 @@ const kmlFileUrls = [
 
 
 const elevenlabs = new ElevenLabsClient({
-  apiKey: 'sk_2f5f613f0236eadc1f9730d16f2d6c2bfcdea56ede7a550b', 
+  apiKey: 'sk_2f5f613f0236eadc1f9730d16f2d6c2bfcdea56ede7a550b',
 });
 
 
@@ -163,7 +163,7 @@ export default function Chat() {
   const onSubmitFormComponent = async (formValues: any) => {
     const formEntries = Object.entries(formValues.formData).map(([key, value]) => `${key}: ${value}`);
     const formDetails = formEntries.join(', ');
-    
+
     const messageContent = "No response";
 
     setModelResponse(messageContent);
@@ -252,14 +252,14 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
   useEffect(() => {
     const fetchAnalysis = async () => {
       const { startPosition } = prevState.current;
-      if (startPosition && 
-          startPosition.length === 2 && 
-          !apiCalledRef.current && 
-          !isLoading) {
-        
+      if (startPosition &&
+        startPosition.length === 2 &&
+        !apiCalledRef.current &&
+        !isLoading) {
+
         setIsLoading(true);
         apiCalledRef.current = true;
-        
+
         try {
           const response = await fetch('http://127.0.0.1:5000/riskanalysis', {
             method: 'POST',
@@ -316,7 +316,7 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
         }
       }
     };
-    
+
     setTimeout(playAudio, 3000);
   }, [modelResponse]);
 
@@ -324,11 +324,11 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
   useEffect(() => {
     const essentialKmlFiles = ['/kml/flood.kml', '/kml/waterdepth.kml'];
     setLoadedKmlFiles(essentialKmlFiles);
-    
+
     const timer = setTimeout(() => {
       setLoadedKmlFiles(kmlFileUrls);
     }, 2000);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -403,23 +403,23 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
     }
 
     const { startPosition, markers, zoomLevel } = prevState.current;
-    
+
     return (
       <div>
         <div style={{ 'height': '100vh' }}>
           <ErrorBoundary fallbackRender={fallbackRender} resetKeys={[JSON.stringify(startPosition), JSON.stringify(markers)]}>
             {startPosition && (
-              <Map 
-                center={startPosition} 
-                markers={markers} 
-                zoomLevel={25} 
-                kmlFiles={loadedKmlFiles} 
-                iconMapping={iconMapping} 
+              <Map
+                center={startPosition}
+                markers={markers}
+                zoomLevel={25}
+                kmlFiles={loadedKmlFiles}
+                iconMapping={iconMapping}
               />
             )}
           </ErrorBoundary>
         </div>
-        
+
         {showAdditionalComponents && (
           <>
             <div>

@@ -3,6 +3,7 @@
 import { RJSFSchema } from '@rjsf/utils';
 import RjsfForm from '@rjsf/core';
 import validator from '@rjsf/validator-ajv8';
+import { rjsfShadcnTemplates, rjsfShadcnWidgets } from './rjsf-shadcn-theme';
 
 // const schema: RJSFSchema = {
 //   title: 'Todo',
@@ -19,11 +20,13 @@ import validator from '@rjsf/validator-ajv8';
 export const Form = ({ jsonSchema, uiSchema, onSubmit }: any) => {
     return <div>
         <RjsfForm
-            className="schema-form"
+            className="schema-form space-y-6"
             // schema={schema}
             schema={jsonSchema}
             uiSchema={uiSchema}
             validator={validator}
+            templates={rjsfShadcnTemplates as any}
+            widgets={rjsfShadcnWidgets as any}
             // onChange={log('changed')}
             // onSubmit={log('submitted')}
             onSubmit={onSubmit}
