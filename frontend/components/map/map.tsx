@@ -282,6 +282,7 @@ const KMLLayers = ({ kmlFiles, iconMapping }) => {
               key={index}
               position={[feature.geometry.coordinates[1], feature.geometry.coordinates[0]]}
               icon={icon}
+              {...{} as any}
             />
           );
         }
