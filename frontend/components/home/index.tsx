@@ -217,48 +217,94 @@ export default function Home({ runQuery }: HomeProps) {
   };
 
   return (
-    <section className="home flex flex-col items-center justify-center min-h-screen overflow-auto">
+    <section className="home flex flex-col items-center justify-center min-h-screen overflow-auto relative">
+      {/* Animated gradient background */}
+      <div className="fixed inset-0 z-0 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 animate-gradient-shift" />
+      
+      {/* Background image overlay */}
       <div
-        className="fixed inset-0 z-0"
-
+        className="fixed inset-0 z-0 opacity-20"
         style={{
           backgroundImage: "url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
+          backgroundRepeat: 'no-repeat',
+          mixBlendMode: 'overlay'
         }}
       />
+      
+      {/* Floating elements */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-float-delayed" />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl animate-float-slow" />
+      </div>
+      
       <div className="relative z-10 w-full items-center">
+        {/* Hero section */}
+        <div className="w-full max-w-4xl mx-auto text-center mb-8 px-6 animate-fade-in-up">
+          <h1 className="text-6xl md:text-7xl font-extrabold text-white mb-4 tracking-tight">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 animate-gradient-text">
+              BANG MAPS
+            </span>
+          </h1>
+          <p className="text-xl text-gray-300 mb-2 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            AI-Powered Property Risk Analysis
+          </p>
+          <p className="text-sm text-gray-400 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            Get instant insights on crime rates, flood risks, and property value
+          </p>
+        </div>
 
-        <div className="w-full max-w-2xl p-6 mx-auto relative z-20">
-          <div className="backdrop-blur-lg bg-black/50 p-6 rounded-2xl border border-black/10 shadow-2xl">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="bg-white p-2 rounded-full flex justify-center items-center w-full">
-                <h1 className="text-4xl font-bold text-blue-600 text-center mb-0">BANG MAPS</h1>
-              </div>
-              <div className="flex items-center space-x-2 w-full">
-                <Input
-                  className="w-full bg-black/10 border-black/20 text-black placeholder-gray-400 focus:ring-purple-500 focus:border-purple-500"
-                  placeholder="How can we help you?"
-                  type="text"
-                  onKeyPress={(event) => { if (event.key === 'Enter') submitForm(); }}
-                  onChange={(e) => setQuery(e.target.value)}
-                  value={query}
-                />
+        <div className="w-full max-w-2xl p-6 mx-auto relative z-20 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+          <div className="backdrop-blur-2xl bg-white/10 p-8 rounded-3xl border border-white/20 shadow-2xl hover:shadow-purple-500/20 transition-all duration-500 hover:scale-[1.02]">
+            <div className="flex flex-col items-center space-y-6">
+              <div className="flex items-center space-x-3 w-full">
+                <div className="relative flex-1 group">
+                  <Input
+                    className="w-full bg-white/90 border-white/30 text-gray-900 placeholder-gray-500 focus:ring-4 focus:ring-purple-500/50 focus:border-purple-400 rounded-2xl py-6 px-6 text-base shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:bg-white"
+                    placeholder="Describe your property requirements..."
+                    type="text"
+                    onKeyPress={(event) => { if (event.key === 'Enter') submitForm(); }}
+                    onChange={(e) => setQuery(e.target.value)}
+                    value={query}
+                  />
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400 to-blue-400 opacity-0 group-hover:opacity-20 transition-opacity duration-300 pointer-events-none" />
+                </div>
                 <Button
-                  className={`p-2 rounded-full ${isRecording ? 'bg-purple-600 hover:bg-purple-700' : 'bg-black/10 hover:bg-white/20'} transition-colors duration-200`}
+                  className={`p-4 rounded-2xl transition-all duration-300 shadow-lg hover:shadow-xl ${
+                    isRecording 
+                      ? 'bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 animate-pulse' 
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                  }`}
                   onClick={() => isRecording ? stopRecording(true) : startRecording()}
                 >
-                  <MicIcon className="w-5 h-5 text-white" />
+                  <MicIcon className="w-6 h-6 text-white" />
                 </Button>
                 <Button
-                  className="bg-purple-600 hover:bg-purple-700 text-white rounded-md py-2 px-4 text-sm font-medium transition-colors duration-200"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-2xl py-4 px-6 text-base font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   type="submit"
                   onClick={submitForm}
                   disabled={isDisabled}
                 >
-                  <SearchIcon className="w-5 h-5" />
+                  <SearchIcon className="w-6 h-6" />
                 </Button>
+              </div>
+              
+              {/* Feature badges */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white backdrop-blur-sm border border-white/20">
+                  🎤 Voice Input
+                </span>
+                <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white backdrop-blur-sm border border-white/20">
+                  🗺️ Interactive Maps
+                </span>
+                <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white backdrop-blur-sm border border-white/20">
+                  📊 Risk Analysis
+                </span>
+                <span className="px-3 py-1 bg-white/10 rounded-full text-xs text-white backdrop-blur-sm border border-white/20">
+                  ⚡ Real-time Data
+                </span>
               </div>
             </div>
           </div>
