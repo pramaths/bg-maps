@@ -16,20 +16,20 @@ interface SidebarProps {
 export default function Sidebar({ messages, children, ShowMessage, onSubmitFormComponent, iconMapping }: any) {
   return (
     <div className="flex h-screen">
-      <div className="w-1/4 border-r border-border bg-background text-foreground">
+      <div className="w-1/4 border-r border-gray-300 bg-white text-gray-900">
         <div className="p-4">
-          <h2 className="text-2xl bg-card text-card-foreground p-2 text-center rounded-sm font-bold border border-border">BangMaps</h2>
+          <h2 className="text-2xl bg-white text-gray-900 p-2 text-center rounded-sm font-bold border border-gray-300">BangMaps</h2>
 
           <div className="mt-4">
-            <details className="rounded-md border border-border bg-card p-3">
-              <summary className="cursor-pointer select-none text-sm font-semibold">
+            <details className="rounded-md border border-gray-300 bg-white p-3">
+              <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">
                 Map legend
               </summary>
               <div className="mt-3 space-y-2">
                 {iconMapping && Object.entries(iconMapping).map(([key, url]: any) => (
                   <div key={key} className="flex items-center gap-3">
                     <img src={url} alt={key} className="h-6 w-6 object-contain" />
-                    <span className="text-sm text-muted-foreground">{key}</span>
+                    <span className="text-sm text-gray-600">{key}</span>
                   </div>
                 ))}
               </div>
@@ -37,8 +37,8 @@ export default function Sidebar({ messages, children, ShowMessage, onSubmitFormC
           </div>
           <div className="mt-4 space-y-2">
             {messages.map((message, index) => {
-              return <div className="p-2 rounded-md bg-card border border-border">
-                <div className="text-sm text-muted-foreground">
+              return <div key={index} className="p-2 rounded-md bg-white border border-gray-300">
+                <div className="text-sm text-gray-600">
                   {/* <strong>{message.role}:</strong> */}
                   {/* {message.content} */}
                   <ShowMessage message={message} onSubmitFormComponent={onSubmitFormComponent} />
