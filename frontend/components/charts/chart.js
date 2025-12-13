@@ -20,27 +20,104 @@ const waterDepthData = [
 
 const WaterDepthChart = () => {
   const data = {
-    labels: waterDepthData.map(item => item.distance),
+    labels: waterDepthData.map(item => `${item.distance}m`),
     datasets: [
       {
-        label: 'Average Depth (m)',
+        label: 'Average Water Depth (m)',
         data: waterDepthData.map(item => item.average_depth),
-        fill: false,
-        backgroundColor: 'rgb(75, 192, 192)',
-        borderColor: 'rgba(75, 192, 192, 0.2)',
+        fill: true,
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 2,
+        tension: 0.4,
+        pointBackgroundColor: 'rgb(59, 130, 246)',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
       },
     ],
   };
 
   const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: 'Water Depth Analysis by Distance',
+        color: '#1f2937',
+        font: {
+          size: 16,
+          weight: 'bold'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: 'rgb(59, 130, 246)',
+        borderWidth: 1,
+      }
+    },
     scales: {
       y: {
-        beginAtZero: true
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Depth (meters)',
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        },
+        ticks: {
+          color: '#4b5563'
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
+      },
+      x: {
+        title: {
+          display: true,
+          text: 'Distance from Center',
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        },
+        ticks: {
+          color: '#4b5563'
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
       }
     }
   };
 
-  return <Line data={data} options={options} />;
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+      <div style={{ height: '400px' }}>
+        <Line data={data} options={options} />
+      </div>
+    </div>
+  );
 };
 
 export default WaterDepthChart;
+

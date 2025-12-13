@@ -161,6 +161,7 @@ Available tools:
 Instructions: 
 - If you need further context from the user to understand their intention sufficient enough to generate a good UI, respond with 3-5 follow-up questions or statements to clarify the user's intention. Focus on understanding the specific requirements, preferences, or constraints related to their request.
 - If you have only 1 quick follow-up question then use chat, otherwise must always use the 'create_simple_form' function but most of them time even its is just 1 quick follow-up question use the create_simple_form.
+- CRITICAL: Once the user submits the form or provides the necessary information, you MUST render the map using the 'create_dynamic_map' function. Do NOT provide reasons for not rendering it. If the form is filled, the next step is ALWAYS to render the map.
 `,
         },
         // {

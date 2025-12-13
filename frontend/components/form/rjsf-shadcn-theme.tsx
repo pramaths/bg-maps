@@ -223,7 +223,7 @@ export function ShadcnSubmitButton(props: any) {
   const submitText = (uiSchema as UiSchema)?.["ui:submitButtonOptions"]?.submitText
 
   return (
-    <Button type="submit" className="w-full">
+    <Button type="submit" className="w-full bg-green-500 hover:bg-green-600">
       {submitText || "Submit"}
     </Button>
   )

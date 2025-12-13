@@ -31,9 +31,10 @@ export interface MapProps {
   }[];
   kmlFiles: string[];
   iconMapping: { [key: string]: string };
+  riskData?: any;
 }
 
-const stringToHashCode = (str) => {
+const stringToHashCode = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const character = str.charCodeAt(i);
@@ -43,7 +44,7 @@ const stringToHashCode = (str) => {
   return hash;
 };
 
-const getMarkerColor = (crimeType) => {
+const getMarkerColor = (crimeType: string) => {
   const hash = stringToHashCode(crimeType);
   const color = `hsl(${Math.abs(hash) % 360}, 70%, 60%)`;
   return color;
@@ -228,49 +229,16 @@ interface Marker {
   color: string;
 }
 
-export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 14 }: MapProps) {
+export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 14, riskData }: MapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markerRefs = useRef<mapboxgl.Marker[]>([]);
   const kmlPointMarkerRefs = useRef<mapboxgl.Marker[]>([]);
   const riskMarkerRefs = useRef<mapboxgl.Marker[]>([]);
   const [geoJsonData, setGeoJsonData] = useState<KmlFeature[]>([]);
-  const [riskAnalysisData, setRiskAnalysisData] = useState<any | null>(null);
   const workerRef = useRef<Worker | null>(null);
   console.log(center, "location of the center of the map")
 
-  const fetchKmlData = async () => {
-    const response = await fetch('http://127.0.0.1:5000/riskanalysis', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        circles: markers.map(marker => ({
-          center: {
-            lat: marker.position[0],
-            lng: marker.position[1]
-          },
-          radius: circleRadius,
-        })),
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.status === 'success') {
-        setRiskAnalysisData(data.data);
-        console.log('Risk analysis data:', data.data);
-      } else {
-        console.error('Error:', data.message);
-      }
-    } else {
-      console.error('Failed to fetch data');
-    }
-  };
-  useEffect(() => {
-    fetchKmlData();
-  }, [markers]);
 
   useEffect(() => {
     const blob = new Blob([kmlWorkerCode], { type: 'application/javascript' });
@@ -329,7 +297,7 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
       container: mapContainerRef.current,
       style: 'mapbox://styles/mapbox/dark-v11',
       center: toLngLat(center),
-      zoom: zoomLevel,
+      zoom: 1.5,
       pitch: 0,
       bearing: 0,
       attributionControl: true,
@@ -366,12 +334,12 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
     riskMarkerRefs.current.forEach((m) => m.remove());
     riskMarkerRefs.current = [];
 
-    if (!riskAnalysisData) return;
+    if (!riskData) return;
 
     const floodIcon = iconMapping?.flood;
     const waterDepthIcon = iconMapping?.waterdepth;
 
-    (riskAnalysisData?.flood ?? []).forEach((p: any) => {
+    (riskData?.flood ?? []).forEach((p: any) => {
       if (!floodIcon || typeof p?.longitude !== 'number' || typeof p?.latitude !== 'number') return;
 
       const el = document.createElement('img');
@@ -390,7 +358,7 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
       riskMarkerRefs.current.push(marker);
     });
 
-    (riskAnalysisData?.waterdepth ?? []).forEach((p: any) => {
+    (riskData?.waterdepth ?? []).forEach((p: any) => {
       if (!waterDepthIcon || typeof p?.longitude !== 'number' || typeof p?.latitude !== 'number') return;
 
       const el = document.createElement('img');
@@ -409,7 +377,7 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
 
       riskMarkerRefs.current.push(marker);
     });
-  }, [riskAnalysisData, iconMapping]);
+  }, [riskData, iconMapping]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -418,7 +386,7 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
     map.flyTo({
       center: toLngLat(center),
       zoom: zoomLevel,
-      duration: 1200,
+      duration: 6000,
       essential: true,
     });
   }, [center, zoomLevel]);
@@ -667,6 +635,28 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
           map.getCanvas().style.cursor = 'pointer';
         });
         map.on('mouseleave', 'crime-clusters', () => {
+          map.getCanvas().style.cursor = '';
+        });
+
+        map.on('click', 'crime-unclustered', (e) => {
+          const coordinates = (e.features?.[0].geometry as any).coordinates.slice();
+          const crimeCategory = e.features?.[0].properties?.crimeCategory;
+
+          while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+          }
+
+          new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(`<strong>${crimeCategory}</strong>`)
+            .addTo(map);
+        });
+
+        map.on('mouseenter', 'crime-unclustered', () => {
+          map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', 'crime-unclustered', () => {
           map.getCanvas().style.cursor = '';
         });
       }

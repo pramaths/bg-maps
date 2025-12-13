@@ -29,43 +29,99 @@ const CrimeRateBarChart = () => {
   };
 
   const data = {
-    labels: crimeData.CrimeRate.map(item => `${item.distance} meters`),
+    labels: crimeData.CrimeRate.map(item => `${item.distance}m`),
     datasets: [
       {
         label: 'Average Crime Rate',
         data: crimeData.CrimeRate.map(item => item.average_crime_rate),
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 1,
+        backgroundColor: 'rgba(239, 68, 68, 0.7)',
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 2,
+        borderRadius: 4,
+        hoverBackgroundColor: 'rgba(239, 68, 68, 0.9)',
       },
     ],
   };
 
   const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
+        labels: {
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: 'Crime Rate Analysis by Distance',
+        color: '#1f2937',
+        font: {
+          size: 16,
+          weight: 'bold'
+        }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: 'rgb(239, 68, 68)',
+        borderWidth: 1,
+      }
+    },
     scales: {
       y: {
         beginAtZero: true,
         title: {
           display: true,
           text: 'Average Crime Rate',
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
         },
+        ticks: {
+          color: '#4b5563'
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
       },
       x: {
         title: {
           display: true,
-          text: 'Distance from Point of Interest',
+          text: 'Distance from Center',
+          color: '#1f2937',
+          font: {
+            size: 12,
+            weight: 'bold'
+          }
         },
-      },
-    },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'top',
+        ticks: {
+          color: '#4b5563'
+        },
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)'
+        }
       },
     },
   };
 
-  return <Bar data={data} options={options} />;
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
+      <div style={{ height: '400px' }}>
+        <Bar data={data} options={options} />
+      </div>
+    </div>
+  );
 };
 
 export default CrimeRateBarChart;
+

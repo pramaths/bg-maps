@@ -216,8 +216,8 @@ function ShowMessage({ message: m, onSubmitFormComponent, modelResponse, isMain 
         className={`w-full rounded-2xl px-2 py-2 text-sm shadow-sm ${isUser
           ? 'bg-blue-600 text-white'
           : isMain
-            ? 'bg-transparent text-zinc-800 px-0 py-0'
-            : 'bg-zinc-100 text-zinc-800 py-2 border border-zinc-200'
+            ? 'bg-transparent text-zinc-800 p-0'
+            : 'bg-zinc-100 text-zinc-800 p-0 border border-zinc-200'
           }`}
       >
         {!isMain && <div className="font-semibold text-xs opacity-70 mb-1.5 uppercase tracking-wider">
@@ -251,7 +251,7 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
   const [isLoading, setIsLoading] = useState(false);
   const [analysisData, setAnalysisData] = useState(null);
   const apiCalledRef = useRef(false);
-  const [showAdditionalComponents, setShowAdditionalComponents] = useState(false);
+  const [showAdditionalComponents, setShowAdditionalComponents] = useState(true);
   const [loadedKmlFiles, setLoadedKmlFiles] = useState<string[]>([]);
 
   useEffect(() => {
@@ -378,9 +378,17 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
         }, [0, 0])
           .map(x => x / readyMarkers.length)
         ) : null);
-      prevState.current.startPosition = startPosition;
-      prevState.current.markers = readyMarkers;
-      prevState.current.zoomLevel = zoomLevel;
+
+      // Update refs only if changed deeply
+      if (JSON.stringify(prevState.current.startPosition) !== JSON.stringify(startPosition) ||
+        JSON.stringify(prevState.current.markers) !== JSON.stringify(readyMarkers)) {
+        prevState.current.startPosition = startPosition;
+        prevState.current.markers = readyMarkers;
+        prevState.current.zoomLevel = zoomLevel;
+        // Trigger fetch if we have valid coordinates and haven't fetched for *this* state yet
+        // resetting apiCalledRef to allow new fetch for new location
+        apiCalledRef.current = false;
+      }
     } catch (error) {
       console.error('Error parsing map arguments:', error);
     }
@@ -388,8 +396,8 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
     const { startPosition, markers, zoomLevel } = prevState.current;
 
     return (
-      <div>
-        <div style={{ 'height': '100vh' }}>
+      <div className="relative w-full">
+        <div className="sticky top-0 h-screen w-full z-0">
           <ErrorBoundary fallbackRender={fallbackRender} resetKeys={[JSON.stringify(startPosition), JSON.stringify(markers)]}>
             {startPosition && (
               <Map
@@ -398,13 +406,14 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
                 zoomLevel={zoomLevel}
                 kmlFiles={loadedKmlFiles}
                 iconMapping={iconMapping}
+                riskData={analysisData}
               />
             )}
           </ErrorBoundary>
         </div>
 
         {showAdditionalComponents && (
-          <>
+          <div className="space-y-6 p-6">
             <div>
               <RiskAnalysisTable analysisData={analysisData} />
             </div>
@@ -421,7 +430,7 @@ function DynamicComponent({ functionCall: functionCallRaw, onSubmit, modelRespon
                 </div>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     );

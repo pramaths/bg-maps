@@ -2,8 +2,8 @@ import React from 'react';
 
 export default function Sidebar({ messages, children, ShowMessage, onSubmitFormComponent, iconMapping }: any) {
   return (
-    <div className="flex h-screen w-full overflow-hidden">
-      <div className="w-[400px] shrink-0 border-r border-zinc-200 bg-zinc-50 text-zinc-900 flex flex-col h-full">
+    <div className="flex h-full w-full overflow-hidden min-h-screen">
+      <div className="w-[400px] shrink-0 border-r border-zinc-800 bg-zinc-50 text-zinc-900 flex flex-col h-full">
         <div className="p-2 flex flex-col h-full overflow-hidden">
           <h2 className="text-2xl bg-yellow-500 text-zinc-900 p-3 text-center rounded-lg font-bold border border-zinc-200 shadow-sm mb-4">BANGMAPS</h2>
 

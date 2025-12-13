@@ -15,19 +15,12 @@ export default function Home({ runQuery }: HomeProps) {
   const [query, setQuery] = useState('');
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [isRecording, setIsRecording] = useState(false);
-  const isRecordingRef = useRef(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
 
   const predefinedQueries = [
     "A house owner from 1st cross, sector 7, hsr layout, Bengaluru has requested for an insurance cover of 2Crore Rs for his 3 storied building, give me the risk analysis report for it",
     "I am planning to buy a 3bhk in malleshwaram 6th main, bangalore, give me the risk analysis report for it and locate it on the map"
   ];
+
   const selectPredefinedQuery = async (predefinedQuery: string) => {
     try {
       setQuery(predefinedQuery);
@@ -58,161 +51,67 @@ export default function Home({ runQuery }: HomeProps) {
     setSelectedRows(newSelection);
   };
 
-
   const isDisabled = !query;
 
-  const detectSilence = (stream: MediaStream) => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
-    }
+  // Simple 4-second recording function
+  const recordOnce = async (): Promise<Blob> => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    const audioContext = audioContextRef.current;
-    const analyser = audioContext.createAnalyser();
-    analyserRef.current = analyser;
+    return new Promise((resolve, reject) => {
+      const recorder = new MediaRecorder(stream, {
+        mimeType: "audio/webm",
+      });
 
-    const microphone = audioContext.createMediaStreamSource(stream);
-    microphone.connect(analyser);
+      const chunks: BlobPart[] = [];
 
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        resolve(blob);
+      };
 
-    let hasSpokenAtAll = false;
-    let silenceStartTime = 0;
+      recorder.onerror = (e) => {
+        stream.getTracks().forEach(track => track.stop());
+        reject(e);
+      };
 
-    const checkAudioLevel = () => {
-      if (!isRecordingRef.current) return;
-
-      analyser.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-      console.log("Audio level average:", average);
-
-      if (average > 45) { // Threshold to consider as speaking
-        hasSpokenAtAll = true;
-        setIsSpeaking(true);
-        silenceStartTime = 0;
-      } else {
-        if (!silenceStartTime) {
-          silenceStartTime = Date.now();
-        }
-
-        const silenceDuration = Date.now() - silenceStartTime;
-
-        if (silenceDuration > 3500) { // Wait for 3.5 seconds of silence
-          if (hasSpokenAtAll) {
-            stopRecording(true);
-          } else {
-            stopRecording(false);
-          }
-          return;
-        }
-      }
-
-      requestAnimationFrame(checkAudioLevel);
-    };
-
-    checkAudioLevel();
+      recorder.start();
+      setTimeout(() => recorder.stop(), 8000); // 4 sec capture
+    });
   };
 
-  const startRecording = async () => {
+  const handleVoiceInput = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.start();
       setIsRecording(true);
-      isRecordingRef.current = true;
 
-      detectSilence(stream);
+      // Record for 4 seconds
+      const audioBlob = await recordOnce();
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
+      // Send to speech-to-text API
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
 
-      mediaRecorder.onstop = async () => {
-        try {
-          if (chunksRef.current.length > 0 && isSpeaking) {
-            const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-            const formData = new FormData();
-            formData.append('file', audioBlob, 'recording.webm');
-            formData.append('model', 'whisper-1');
+      const response = await fetch('/api/speechtotext', {
+        method: 'POST',
+        body: formData,
+      });
 
-            const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${getApiKey()}` },
-              body: formData
-            });
+      if (!response.ok) {
+        throw new Error(`Transcription failed: ${response.statusText}`);
+      }
 
-            if (!response.ok) {
-              throw new Error(`Transcription failed: ${response.statusText}`);
-            }
+      const result = await response.json();
 
-            const result = await response.json();
-            setQuery(result.text);
-            runQuery({ query: result.text, apiKey: getApiKey() });
-          }
-        } catch (error) {
-          console.error('Transcription error:', error);
-          alert('Failed to transcribe audio. Please try again.');
-        } finally {
-          stream.getTracks().forEach(track => track.stop());
-          if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-          }
-          setIsSpeaking(false);
-        }
-      };
+      // Set the transcribed text and trigger submit
+      setQuery(result.transcript);
+      runQuery({ query: result.transcript, apiKey: getApiKey() });
+
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-      alert('Failed to access microphone. Please ensure you have granted microphone permissions.');
-    }
-  };
-
-  const stopRecording = async (shouldProcess: boolean = true) => {
-    if (mediaRecorderRef.current && isRecordingRef.current) {
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
-      }
-      if (!shouldProcess) {
-        setIsSpeaking(false);
-      }
-      isRecordingRef.current = false;
+      console.error('Voice input error:', error);
+      alert('Failed to process voice input. Please try again.');
+    } finally {
       setIsRecording(false);
-
-      if (shouldProcess) {
-        setTimeout(async () => {
-          try {
-            const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-            const formData = new FormData();
-            formData.append('file', audioBlob, 'recording.webm');
-            formData.append('model', 'whisper-1');
-
-            const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-              method: 'POST',
-              headers: { 'Authorization': `Bearer ${getApiKey()}` },
-              body: formData
-            });
-
-            if (!response.ok) {
-              throw new Error(`Transcription failed: ${response.statusText}`);
-            }
-
-            const result = await response.json();
-            setQuery(result.text);
-            runQuery({ query: result.text, apiKey: getApiKey() });
-          } catch (error) {
-            console.error('Transcription error:', error);
-            alert('Failed to transcribe audio. Please try again.');
-          }
-        }, 3500); // 3.5 second delay
-      }
-
-      mediaRecorderRef.current.stop();
     }
   };
 
@@ -246,8 +145,9 @@ export default function Home({ runQuery }: HomeProps) {
                   value={query}
                 />
                 <Button
-                  className={`p-2 rounded-full ${isRecording ? 'bg-purple-600 hover:bg-purple-700' : 'bg-black/10 hover:bg-white/20'} transition-colors duration-200`}
-                  onClick={() => isRecording ? stopRecording(true) : startRecording()}
+                  className={`p-2 rounded-full ${isRecording ? 'bg-purple-600 hover:bg-purple-700 animate-pulse' : 'bg-black/10 hover:bg-white/20'} transition-colors duration-200`}
+                  onClick={handleVoiceInput}
+                  disabled={isRecording}
                 >
                   <MicIcon className="w-5 h-5 text-white" />
                 </Button>
@@ -283,7 +183,7 @@ export default function Home({ runQuery }: HomeProps) {
 
         <RecordingDialog
           isOpen={isRecording}
-          onClose={() => { if (isRecording) stopRecording(); }}
+          onClose={() => { }}
         />
       </div>
 
