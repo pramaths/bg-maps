@@ -387,40 +387,105 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
   }, [markers]);
 
 
-  return <div>
-    <MapContainer center={center} zoom={zoomLevel} maxZoom={19} style={{ height: '100vh' }}
-      ref={mapRef}
-      {...{} as any}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoicHJhbWF0aHMxMSIsImEiOiJjbWdwajU2NWcwb2FyMmpxNDAzN3AwdHF4In0.GL0MDtz32PYXGNfs571Luw"
-        tileSize={512}
-        zoomOffset={-1}
+  return (
+    <div className="relative">
+      {/* Loading overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-purple-900/20 pointer-events-none z-10 animate-pulse" 
+           style={{ animation: 'fadeOut 2s ease-out forwards' }} />
+      
+      <MapContainer center={center} zoom={zoomLevel} maxZoom={19} style={{ height: '100vh' }}
+        ref={mapRef}
         {...{} as any}
-      />
-      {markers.map((data, index) => {
-        return (
-          <div key={index}>
-            <Marker
-              position={data.position}
-              icon={markersByColor[data?.color] ?? markersByColor['red']}
-              {...{} as any}
-            >
-              <Popup>{data.label}</Popup>
-            </Marker>
-            <ExtendedCircle
-              center={data.position}
-              pathOptions={{ color: 'red' }}
-              radius={circleRadius as any}
-            />
-          </div>
-        );
-      })}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoicHJhbWF0aHMxMSIsImEiOiJjbWdwajU2NWcwb2FyMmpxNDAzN3AwdHF4In0.GL0MDtz32PYXGNfs571Luw"
+          tileSize={512}
+          zoomOffset={-1}
+          {...{} as any}
+        />
+        
+        {/* Animation controller */}
+        <MapAnimationController center={center} markers={markers} zoomLevel={zoomLevel} />
+        
+        {markers.map((data, index) => {
+          const isVisible = markersVisible.has(index);
+          return (
+            <div key={index} style={{ 
+              opacity: isVisible ? 1 : 0,
+              transition: 'opacity 0.6s ease-in-out',
+              transform: isVisible ? 'scale(1)' : 'scale(0.5)'
+            }}>
+              <Marker
+                position={data.position}
+                icon={markersByColor[data?.color] ?? markersByColor['red']}
+                {...{} as any}
+              >
+                <Popup>
+                  <div className="font-semibold text-gray-900">
+                    {data.label}
+                  </div>
+                </Popup>
+              </Marker>
+              <ExtendedCircle
+                center={data.position}
+                pathOptions={{ 
+                  color: 'red', 
+                  fillColor: '#ef4444',
+                  fillOpacity: isVisible ? 0.1 : 0,
+                  weight: 2,
+                  opacity: isVisible ? 0.6 : 0
+                }}
+                radius={circleRadius as any}
+              />
+            </div>
+          );
+        })}
 
-      <KMLLayers kmlFiles={kmlFiles} iconMapping={iconMapping} />
+        <KMLLayers kmlFiles={kmlFiles} iconMapping={iconMapping} />
 
-      <CrimeMarkers crimeData={crimeData} />
-    </MapContainer>
-  </div>;
+        <CrimeMarkers crimeData={crimeData} />
+      </MapContainer>
+      
+      <style jsx global>{`
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        
+        /* Marker drop animation */
+        .leaflet-marker-icon {
+          animation: markerDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        
+        @keyframes markerDrop {
+          0% {
+            transform: translateY(-100px) scale(0);
+            opacity: 0;
+          }
+          50% {
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+        
+        /* Pulse animation for markers */
+        .leaflet-marker-icon:hover {
+          animation: markerPulse 1s ease-in-out infinite;
+        }
+        
+        @keyframes markerPulse {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+        }
+      `}</style>
+    </div>
+  );
 }
