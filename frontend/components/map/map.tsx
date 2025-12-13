@@ -311,11 +311,47 @@ interface Marker {
   color: string;
 }
 
+// Component to handle smooth map animations
+const MapAnimationController = ({ center, markers, zoomLevel }) => {
+  const map = useMap();
+  const [animatedMarkers, setAnimatedMarkers] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (center && map) {
+      // Smooth fly-to animation with 10x zoom effect
+      map.flyTo(center, zoomLevel, {
+        duration: 2.5,
+        easeLinearity: 0.25,
+        animate: true
+      });
+      
+      // Animate markers sequentially
+      markers.forEach((_, index) => {
+        setTimeout(() => {
+          setAnimatedMarkers(prev => [...prev, index]);
+        }, 1000 + (index * 300));
+      });
+    }
+  }, [center, markers, zoomLevel, map]);
+
+  return null;
+};
+
 export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomLevel = 19 }: MapProps) {
   const mapRef = useRef()
   const [circleData, setCircleData] = useState([]);
   const [kmlData, setKmlData] = useState([]);
+  const [markersVisible, setMarkersVisible] = useState<Set<number>>(new Set());
   console.log(center, "location of the center of the map")
+  
+  useEffect(() => {
+    // Animate markers appearing one by one
+    markers.forEach((_, index) => {
+      setTimeout(() => {
+        setMarkersVisible(prev => new Set([...prev, index]));
+      }, 1500 + (index * 400));
+    });
+  }, [markers])
 
   const fetchKmlData = async () => {
     const response = await fetch('http://127.0.0.1:5000/riskanalysis', {
