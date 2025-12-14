@@ -52,8 +52,8 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
 
         return {
             details: analysisData.crime_risk?.toUpperCase() || defaultDetails.details,
-            remarks: analysisData.crime?.length >= 25 ? 
-                'High crime activity detected in the area' : 
+            remarks: analysisData.crime?.length >= 25 ?
+                'High crime activity detected in the area' :
                 'Moderate to low crime activity in the area'
         };
     };
@@ -70,8 +70,8 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
 
         return {
             details: analysisData.waterdepth_risk?.toUpperCase() || defaultDetails.details,
-            remarks: analysisData.waterdepth >= 6 ? 
-                'Area prone to flooding due to high water depth' : 
+            remarks: analysisData.waterdepth >= 6 ?
+                'Area prone to flooding due to high water depth' :
                 'Normal water depth levels'
         };
     };
@@ -90,12 +90,12 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
         const pH = analysisData.waterquality[0].data.pH;
         return {
             details: `${pH >= 7 ? 'Alkaline' : 'Acidic'} (${pH})`,
-            remarks: pH >= 6.5 && pH <= 8.5 ? 
-                'pH levels within safe range' : 
+            remarks: pH >= 6.5 && pH <= 8.5 ?
+                'pH levels within safe range' :
                 'pH levels outside recommended range'
         };
     };
-    
+
     const getWaterQualityDissolvedOxygen = () => {
         const defaultDetails = {
             details: 'Good (8mg/l)',
@@ -109,12 +109,12 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
         const do_level = analysisData.waterquality[0].data.dissolved_oxygen;
         return {
             details: `${do_level}mg/l`,
-            remarks: do_level >= 5 ? 
-                'Sufficient oxygen level for aquatic life' : 
+            remarks: do_level >= 5 ?
+                'Sufficient oxygen level for aquatic life' :
                 'Low oxygen level, may affect aquatic life'
         };
     };
-    
+
     const getWaterQualityTotalColiform = () => {
         const defaultDetails = {
             details: 'Moderate (2400)',
@@ -128,12 +128,12 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
         const coliform = analysisData.waterquality[0].data.total_coliform;
         return {
             details: `${coliform}`,
-            remarks: coliform > 1000 ? 
-                'High bacterial contamination detected' : 
+            remarks: coliform > 1000 ?
+                'High bacterial contamination detected' :
                 'Safe bacterial levels'
         };
     };
-    
+
     // Helper function for verdict with default value
     const getVerdict = () => {
         const defaultVerdict = 'Overall Risk Assessment: MODERATE - Exercise normal precautions';
@@ -144,12 +144,11 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
 
         const hasCrimeRisk = analysisData?.crime?.length >= 25;
         const hasWaterDepthRisk = analysisData?.waterdepth >= 6;
-        
-        return `Overall Risk Assessment: ${
-            (hasCrimeRisk || hasWaterDepthRisk) ? 
-            'HIGH - Exercise Caution' : 
+
+        return `Overall Risk Assessment: ${(hasCrimeRisk || hasWaterDepthRisk) ?
+            'HIGH - Exercise Caution' :
             'LOW - Generally Safe Area'
-        }`;
+            }`;
     };
 
     // Define the risk analysis data structure
@@ -201,37 +200,37 @@ function RiskAnalysisTable({ analysisData }: { analysisData: any }) {
     };
 
     return (
-        <div className='m-5'>
-        <h3 className='text-2xl mb-5'>Risk Analysis Report</h3>
-        <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-            <table className='w-full text-sm text-left text-gray-500 dark:text-gray-400'>
-                <thead className='text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400'>
-                    <tr>
-                        {riskData.header.map((headerItem, index) => (
-                            <th key={index} className='py-3 px-6'>
-                                {headerItem.label}
-                            </th>  
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {riskData.data.map((row, rowIndex) => (
-                        <tr key={rowIndex} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                            <td className='py-4 px-6'>{row.criteria}</td>
-                            <td className='py-4 px-6'>{row.details}</td>
-                            <td className='py-4 px-6'>{row.remarks}</td>
+        <div className='m-5 text-white'>
+            <h3 className='text-2xl mb-5 text-white'>Risk Analysis Report</h3>
+            <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
+                <table className='w-full text-sm text-left text-white'>
+                    <thead className='text-xs text-white uppercase bg-gray-800'>
+                        <tr>
+                            {riskData.header.map((headerItem, index) => (
+                                <th key={index} className='py-3 px-6'>
+                                    {headerItem.label}
+                                </th>
+                            ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-        {riskData.verdict && (
-            <div className='mt-4'>
-                <strong className='text-lg'>Verdict:</strong> <span className='text-lg'>{riskData.verdict}</span>
+                    </thead>
+                    <tbody>
+                        {riskData.data.map((row, rowIndex) => (
+                            <tr key={rowIndex} className="bg-gray-900 border-b border-gray-700 text-white">
+                                <td className='py-4 px-6'>{row.criteria}</td>
+                                <td className='py-4 px-6'>{row.details}</td>
+                                <td className='py-4 px-6'>{row.remarks}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-        )}
-    </div>
-    
+            {riskData.verdict && (
+                <div className='mt-4'>
+                    <strong className='text-lg text-white'>Verdict:</strong> <span className='text-lg text-white'>{riskData.verdict}</span>
+                </div>
+            )}
+        </div>
+
     );
 }
 

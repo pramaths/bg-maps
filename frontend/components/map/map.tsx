@@ -519,21 +519,12 @@ export default function Map({ center, markers, kmlFiles = [], iconMapping, zoomL
 
       kmlPointMarkerRefs.current.forEach((m) => m.remove());
       kmlPointMarkerRefs.current = [];
-      const markerCenters: [number, number][] = (markers ?? []).map((m) => m.position);
-      const isInAnyCircle = (lat: number, lon: number) => {
-        if (markerCenters.length === 0) return true;
-        for (const c of markerCenters) {
-          if (haversineMeters(c, [lat, lon]) <= circleRadius) return true;
-        }
-        return false;
-      };
 
       pointFeatures.forEach((feature) => {
         const iconUrl = feature.properties?.fileName ? iconMapping[feature.properties.fileName] : undefined;
         if (!iconUrl) return;
 
         const [lon, lat] = feature.geometry.coordinates;
-        if (!isInAnyCircle(lat, lon)) return;
 
         const el = document.createElement('img');
         el.src = iconUrl;
