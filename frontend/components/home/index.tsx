@@ -3,12 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRef, useState, useEffect } from 'react';
-import OpenAI from "openai";
 import { RecordingDialog } from "@/components/recording-dialog";
 import { SearchIcon, MicIcon } from "lucide-react";
 
 export interface HomeProps {
-  runQuery: (data: { query: string; apiKey: string }) => void;
+  runQuery: (data: { query: string; apiKey?: string }) => void;
 }
 
 export default function Home({ runQuery }: HomeProps) {
@@ -24,7 +23,7 @@ export default function Home({ runQuery }: HomeProps) {
   const selectPredefinedQuery = async (predefinedQuery: string) => {
     try {
       setQuery(predefinedQuery);
-      runQuery({ query: predefinedQuery, apiKey: getApiKey() });
+      runQuery({ query: predefinedQuery });
     } catch (error) {
       console.error('Error during search payment:', error);
       alert('Failed to process payment for search. Please try again.');
@@ -33,8 +32,7 @@ export default function Home({ runQuery }: HomeProps) {
 
   const submitForm = async () => {
     try {
-      const apiKey = getApiKey();
-      runQuery({ query, apiKey });
+      runQuery({ query });
     } catch (error) {
       console.error('Error during search payment:', error);
       alert('Failed to process payment for search. Please try again.');
@@ -105,7 +103,7 @@ export default function Home({ runQuery }: HomeProps) {
 
       // Set the transcribed text and trigger submit
       setQuery(result.transcript);
-      runQuery({ query: result.transcript, apiKey: getApiKey() });
+      runQuery({ query: result.transcript });
 
     } catch (error) {
       console.error('Voice input error:', error);
@@ -193,15 +191,3 @@ export default function Home({ runQuery }: HomeProps) {
 
 
 
-function getApiKey(): string {
-  const apiKey = window.localStorage.getItem('OPENAI_API_KEY');
-  if (apiKey) return apiKey;
-  const newApiKey = prompt(`Enter your OpenAI API key from https://platform.openai.com/account/api-keys`, 'sk-...');
-  if (newApiKey) {
-    window.localStorage.setItem('OPENAI_API_KEY', newApiKey);
-    return newApiKey;
-  }
-  const errorMessage = `You didn't provide the required OpenAI API key.`;
-  alert(errorMessage);
-  throw new Error(errorMessage);
-}

@@ -139,7 +139,7 @@ export default function Chat() {
 
   const submitFirstQuery: HomeProps['runQuery'] = ({ query, apiKey }) => {
     setQuery(query);
-    setApiKey(apiKey);
+    setApiKey(apiKey || null);
     append({
       id: nanoid(),
       role: 'user',
@@ -148,7 +148,7 @@ export default function Chat() {
     }, {
       options: {
         body: {
-          apiKey,
+          apiKey: apiKey || null,
         }
       }
     });
